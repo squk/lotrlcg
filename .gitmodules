@@ -1,0 +1,6 @@
+[submodule "submodule/src/bare"]
+	path = submodule/src/bare
+	url = git://github.com/laramiel/bazel-example-golang-bare
+[submodule "submodule/src/remote"]
+	path = submodule/src/remote
+	url = git://github.com/laramiel/bazel-example-golang-remote
