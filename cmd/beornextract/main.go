@@ -42,7 +42,6 @@ func main() {
 			if err != nil {
 				return err
 			}
-			fmt.Println(path, info.Size())
 			return nil
 		})
 	if err != nil {
@@ -89,18 +88,36 @@ func main() {
 			card.Octgnid = card.Name + card.SphereCode + card.TypeCode + strconv.Itoa(card.Position)
 		}
 
-		threat := strconv.Itoa(card.Threat)
-		victoryPoints := strconv.Itoa(card.VictoryPoints)
+		willpower := getXVal(card.Willpower)
+		attack := getXVal(card.Attack)
+		defense := getXVal(card.Defense)
+		health := getXVal(card.Health)
+		is_unique := strconv.Itoa(b2i(card.IsUnique))
+
+		threat := getXVal(card.Threat)
+		victoryPoints := getXVal(card.VictoryPoints)
+		cost := card.Cost
+		questPoints := getXVal(card.QuestPoints)
 		if playerCard {
 			threat = "" // triggers redundant warning in AleP
-			// AleP wants hero threat in cost
-			card.Cost = strconv.Itoa(card.Threat)
+			if card.TypeCode == "hero" {
+				// AleP wants hero threat in cost
+				cost = strconv.Itoa(card.Threat)
+			}
+
+			if card.TypeCode != "player-side-quest" {
+				questPoints = ""
+			}
+
+			if card.TypeCode == "event" || card.TypeCode == "attachment" {
+				willpower, attack, defense, health = "", "", "", ""
+				is_unique = ""
+			}
 
 			// triggers redundant warning in AleP
 			if card.VictoryPoints == 0 {
 				victoryPoints = ""
 			}
-
 		}
 
 		w.Write(
@@ -112,19 +129,16 @@ func main() {
 				strconv.Itoa(card.Quantity),
 				card.EncounterSet,
 				card.Name,
-				strconv.Itoa(b2i(card.IsUnique)),
+				is_unique,
 				card.TypeName,
 				card.SphereName,
 				card.Traits,
 				findKeywords(card.Text),
-				card.Cost,
+				cost,
 				card.EngagementCost,
 				threat,
-				strconv.Itoa(card.Willpower),
-				strconv.Itoa(card.Attack),
-				strconv.Itoa(card.Defense),
-				strconv.Itoa(card.Health),
-				card.QuestPoints,
+				willpower, attack, defense, health,
+				questPoints,
 				victoryPoints,
 				"", // Special Icon
 				transformText(card.Name, card.Text),
@@ -139,21 +153,42 @@ func main() {
 	// spew.Dump(c)
 }
 
+var keywordPattern = regexp.MustCompile(`^((?:(?:[A-Z][a-z]+(\.|\s[0-9]+\.)\s*)+))`)
+var paragraphPattern = regexp.MustCompile(`(\r\n|\r|\n)+`)
+
 func transformText(name, text string) string {
+
 	if opts.RawConversion {
 		return text
 	}
 
+	boldList := []string{"Travel"}
 	out := strings.ReplaceAll(text, name, "[name]") // insert name tag
 	out = strip.StripTags(out)
-	out = keywordPattern.ReplaceAllLiteralString(out, "")
+	out = keywordPattern.ReplaceAllString(out, "")
+	for _, str := range boldList {
+		out = strings.ReplaceAll(out, str, "[b]"+str+"[/b]")
+	}
+
+	out = regexp.MustCompile(`may trigger this (?:action|response)`).ReplaceAllString(out, "may trigger this effect")
+	out = regexp.MustCompile(`(\bheal[^.]+?\b)on(\b)`).ReplaceAllString(out, "${1}from${2}")
+	out = regexp.MustCompile(`(Traits?)`).ReplaceAllString(out, "{${1}}")
+
+	//  make all newline groups exactly two newlines
+	out = paragraphPattern.ReplaceAllLiteralString(out, "\r\n\r\n")
 	return strings.TrimSpace(out)
 }
 
-var keywordPattern = regexp.MustCompile(`^((?:(?:[A-Z][a-z]+(\.|\s[0-9]+\.)\s*)+))`)
-
 func findKeywords(text string) string {
 	return strings.TrimSpace(keywordPattern.FindString(text))
+}
+
+func getXVal(val int) string {
+	if val == 254 {
+		return "X"
+	}
+
+	return strconv.Itoa(val)
 }
 
 func b2i(b bool) int {

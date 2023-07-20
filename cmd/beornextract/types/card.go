@@ -28,7 +28,7 @@ type HallOfBeornCard struct {
 	Octgnid       string `json:"octgnid,omitempty"`
 	HasErrata     bool   `json:"has_errata,omitempty"`
 	URL           string `json:"url,omitempty"`
-	QuestPoints   string `json:"quest,omitempty"`
+	QuestPoints   int    `json:"quest,omitempty"`
 	VictoryPoints int    `json:"victory,omitempty"`
 	Imagesrc      string `json:"imagesrc,omitempty"`
 
