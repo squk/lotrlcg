@@ -50,8 +50,8 @@ func main() {
 	}
 
 	// Open our jsonFile
-	// jsonFile, err := os.Open("cmd/beornextract/data/Bot.Cards.json")
-	jsonFile, err := os.Open("cmd/beornextract/data/Export.Cards.json")
+	jsonFile, err := os.Open("cmd/beornextract/data/Bot.Cards.json")
+	// jsonFile, err := os.Open("cmd/beornextract/data/Export.Cards.json")
 	// if we os.Open returns an error then handle it
 	if err != nil {
 		fmt.Println(err)
@@ -79,8 +79,28 @@ func main() {
 
 	// Write some rows
 	for _, card := range cards {
+		playerCard := true
 		if card.EncounterSet != "" {
-			continue // skip non=player cards
+			playerCard = false
+			continue // skip non=player cards for now
+		}
+
+		if card.Octgnid == "" {
+			card.Octgnid = card.Name + card.SphereCode + card.TypeCode + strconv.Itoa(card.Position)
+		}
+
+		threat := strconv.Itoa(card.Threat)
+		victoryPoints := strconv.Itoa(card.VictoryPoints)
+		if playerCard {
+			threat = "" // triggers redundant warning in AleP
+			// AleP wants hero threat in cost
+			card.Cost = strconv.Itoa(card.Threat)
+
+			// triggers redundant warning in AleP
+			if card.VictoryPoints == 0 {
+				victoryPoints = ""
+			}
+
 		}
 
 		w.Write(
@@ -88,27 +108,24 @@ func main() {
 				card.Octgnid,
 				"", // hidden
 				"", // hidden
-				card.EncounterSet,
 				strconv.Itoa(card.Position),
 				strconv.Itoa(card.Quantity),
+				card.EncounterSet,
 				card.Name,
-				fmt.Sprintf(
-					"%t",
-					card.IsUnique,
-				),
+				strconv.Itoa(b2i(card.IsUnique)),
 				card.TypeName,
 				card.SphereName,
 				card.Traits,
 				findKeywords(card.Text),
 				card.Cost,
 				card.EngagementCost,
-				strconv.Itoa(card.Threat),
+				threat,
 				strconv.Itoa(card.Willpower),
 				strconv.Itoa(card.Attack),
 				strconv.Itoa(card.Defense),
 				strconv.Itoa(card.Health),
 				card.QuestPoints,
-				strconv.Itoa(card.VictoryPoints),
+				victoryPoints,
 				"", // Special Icon
 				transformText(card.Name, card.Text),
 				card.Shadow,
@@ -137,4 +154,11 @@ var keywordPattern = regexp.MustCompile(`^((?:(?:[A-Z][a-z]+(\.|\s[0-9]+\.)\s*)+
 
 func findKeywords(text string) string {
 	return strings.TrimSpace(keywordPattern.FindString(text))
+}
+
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
