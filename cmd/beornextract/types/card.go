@@ -15,6 +15,7 @@ type HallOfBeornCard struct {
 	Traits        string `json:"traits,omitempty"`
 	Text          string `json:"text,omitempty"`
 	Flavor        string `json:"flavor,omitempty"`
+	Shadow        string `json:"shadow,omitempty"`
 	IsUnique      bool   `json:"is_unique,omitempty"`
 	Threat        int    `json:"threat,omitempty"`
 	Willpower     int    `json:"willpower,omitempty"`

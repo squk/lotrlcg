@@ -1,4 +1,4 @@
-module github.com/squk/lotr
+module github.com/squk/lotrlcg
 
 go 1.19
 

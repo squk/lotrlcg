@@ -4,7 +4,7 @@ package(
 
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/squk/lotr
+# gazelle:prefix github.com/squk/lotrlcg
 # gazelle:build_file_name BUILD
 gazelle(name = "gazelle")
 

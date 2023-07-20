@@ -11,11 +11,11 @@ go_library(
         "//cmd/beornextract/data:Bot.Cards.json",
         "//cmd/beornextract/data:Export.Cards.json",
     ],
-    importpath = "github.com/squk/lotr/cmd/beornextract",
+    importpath = "github.com/squk/lotrlcg/cmd/beornextract",
     deps = [
         "//cmd/beornextract/types",
         "@com_github_grokify_html_strip_tags_go//:html-strip-tags-go",
-        "@com_github_jessevdk_go_flags//:go_default_library",
+        "@com_github_jessevdk_go_flags//:go-flags",
         "@io_bazel_rules_go//go/tools/bazel:go_default_library",
     ],
 )
