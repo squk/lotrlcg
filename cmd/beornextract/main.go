@@ -1,7 +1,11 @@
 package main
 
 import (
+	"crypto/md5"
 	"encoding/csv"
+	"encoding/hex"
+	"github.com/satori/go.uuid"
+
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -49,7 +53,7 @@ func main() {
 	}
 
 	// Open our jsonFile
-	jsonFile, err := os.Open("cmd/beornextract/data/Bot.Cards.json")
+	jsonFile, err := os.Open("cmd/beornextract/data/Bot.Cards.json") // has incorrect data
 	// jsonFile, err := os.Open("cmd/beornextract/data/Export.Cards.json")
 	// if we os.Open returns an error then handle it
 	if err != nil {
@@ -81,18 +85,21 @@ func main() {
 		playerCard := true
 		if card.EncounterSet != "" {
 			playerCard = false
-			continue // skip non=player cards for now
+			// continue // skip non=player cards for now
 		}
 
 		if card.Octgnid == "" {
-			card.Octgnid = card.Name + card.SphereCode + card.TypeCode + strconv.Itoa(card.Position)
+			card.Octgnid = deterministicUUID(card.Name + card.SphereCode + card.TypeCode + strconv.Itoa(card.Position))
 		}
-
+		processedText := transformText(card.Name, card.Text)
+		sideAText := extractSideAText(processedText)
+		sideBText := extractSideBText(processedText)
 		willpower := getXVal(card.Willpower)
 		attack := getXVal(card.Attack)
 		defense := getXVal(card.Defense)
 		health := getXVal(card.Health)
-		is_unique := strconv.Itoa(b2i(card.IsUnique))
+		is_unique := b2s(card.IsUnique)
+		sphere := card.SphereName
 
 		threat := getXVal(card.Threat)
 		victoryPoints := getXVal(card.VictoryPoints)
@@ -105,12 +112,18 @@ func main() {
 				cost = strconv.Itoa(card.Threat)
 			}
 
+			if card.TypeCode == "contract" {
+				sphere = ""
+			}
+
 			if card.TypeCode != "player-side-quest" {
 				questPoints = ""
 			}
 
-			if card.TypeCode == "event" || card.TypeCode == "attachment" {
+			if card.TypeCode == "event" || card.TypeCode == "contract" || card.TypeCode == "attachment" {
 				willpower, attack, defense, health = "", "", "", ""
+			}
+			if card.TypeCode == "event" || card.TypeCode == "contract" {
 				is_unique = ""
 			}
 
@@ -131,7 +144,7 @@ func main() {
 				card.Name,
 				is_unique,
 				card.TypeName,
-				card.SphereName,
+				sphere,
 				card.Traits,
 				findKeywords(card.Text),
 				cost,
@@ -141,9 +154,59 @@ func main() {
 				questPoints,
 				victoryPoints,
 				"", // Special Icon
-				transformText(card.Name, card.Text),
+				sideAText,
 				card.Shadow,
-				card.Flavor,
+				fixFlavor(card.Flavor),
+				"", // printed card number
+				"", // encounter set number
+				"", // encounter set icon
+				"", // flags
+				"", // artist
+				"", // pan X
+				"", // pan Y
+				"", // scale
+				"", // portait shadow
+				"", // Side B
+				"", // is_unique,
+				"", // card.TypeName,
+				"", // card.SphereName,
+				"", // card.Traits,
+				"", // findKeywords(card.Text),
+				"", // cost,
+				"", // EngagementCost,
+				"", // threat,
+				"", // willpower
+				"", // attack
+				"", // defense
+				"", // health
+				"", // questPoints
+				"", // victoryPoints,
+				"", // Special Icon
+				sideBText,
+				"",                   // flavor
+				"",                   // shadow
+				"",                   // printed card number
+				"",                   // encounter set number
+				"",                   // encounter set icon
+				"",                   // flags
+				"",                   // artist
+				"",                   // pan X
+				"",                   // pan Y
+				"",                   // scale
+				"",                   // portrait shadow
+				"",                   // remove for easy
+				"",                   // additional encounter set
+				"",                   // adventure
+				"",                   // collection icon
+				"©FFG ©Middle-earth", // copyright
+				"",                   //Deck Rules
+				"",                   //Selected
+				"",                   //Changed
+				"",                   //Discord Bot
+				"",
+				"", //Current Snapshot
+				card.PackCode,
+				card.PackName,
 			},
 		)
 	}
@@ -157,26 +220,62 @@ var keywordPattern = regexp.MustCompile(`^((?:(?:[A-Z][a-z]+(\.|\s[0-9]+\.)\s*)+
 var paragraphPattern = regexp.MustCompile(`(\r\n|\r|\n)+`)
 
 func transformText(name, text string) string {
-
 	if opts.RawConversion {
 		return text
 	}
-
-	boldList := []string{"Travel"}
 	out := strings.ReplaceAll(text, name, "[name]") // insert name tag
 	out = strip.StripTags(out)
 	out = keywordPattern.ReplaceAllString(out, "")
+
+	boldList := []string{"Travel"}
 	for _, str := range boldList {
 		out = strings.ReplaceAll(out, str, "[b]"+str+"[/b]")
 	}
 
 	out = regexp.MustCompile(`may trigger this (?:action|response)`).ReplaceAllString(out, "may trigger this effect")
+	// heal on -> heal from
 	out = regexp.MustCompile(`(\bheal[^.]+?\b)on(\b)`).ReplaceAllString(out, "${1}from${2}")
-	out = regexp.MustCompile(`(Traits?)`).ReplaceAllString(out, "{${1}}")
 
+	// surround traits
+	reggy := fmt.Sprintf(`\s(%s)\s(trait|or|and|cards?|ally|allies|attachments?|events?|heroes|hero|contracts?|characters?|enemy|enemies|location|or)(\.?)`, strings.Join(types.TraitsList, "|"))
+	out = regexp.MustCompile(reggy).ReplaceAllString(out, " {${1}} $2")
+
+	out = regexp.MustCompile(`\s(Traits?)\s`).ReplaceAllString(out, " {${1}} ")
+
+	out = regexp.MustCompile(`[^\[](tactics|leadership|spirit|lore)[^\]]`).ReplaceAllString(out, "[$1]")
 	//  make all newline groups exactly two newlines
 	out = paragraphPattern.ReplaceAllLiteralString(out, "\r\n\r\n")
 	return strings.TrimSpace(out)
+}
+
+func extractSideAText(text string) string {
+	sideA := "Side A"
+	sideB := "Side B"
+	idxA := strings.Index(text, sideA)
+	idxB := strings.Index(text, sideB)
+	if idxA != -1 && idxB != -1 {
+		return strings.TrimSpace(text[idxA+len(sideA) : idxB])
+	}
+	return text
+}
+
+func extractSideBText(text string) string {
+	sideB := "Side B"
+	if idx := strings.Index(text, sideB); idx != -1 {
+		return strings.TrimSpace(text[idx+len(sideB):])
+	}
+	return ""
+}
+
+func deterministicUUID(uniqueVal string) string {
+	md5hash := md5.New()
+	md5hash.Write([]byte(uniqueVal))
+	md5string := hex.EncodeToString(md5hash.Sum(nil))
+	uuid, err := uuid.FromBytes([]byte(md5string[0:16]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return uuid.String()
 }
 
 func findKeywords(text string) string {
@@ -191,9 +290,13 @@ func getXVal(val int) string {
 	return strconv.Itoa(val)
 }
 
-func b2i(b bool) int {
+func fixFlavor(val string) string {
+	return regexp.MustCompile(`\s-+`).ReplaceAllString(val, " --")
+}
+
+func b2s(b bool) string {
 	if b {
-		return 1
+		return "1"
 	}
-	return 0
+	return ""
 }

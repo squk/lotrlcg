@@ -16,6 +16,7 @@ go_library(
         "//cmd/beornextract/types",
         "@com_github_grokify_html_strip_tags_go//:html-strip-tags-go",
         "@com_github_jessevdk_go_flags//:go-flags",
+        "@com_github_satori_go_uuid//:go_uuid",
         "@io_bazel_rules_go//go/tools/bazel:go_default_library",
     ],
 )
