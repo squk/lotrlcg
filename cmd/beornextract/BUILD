@@ -10,6 +10,8 @@ go_library(
     data = [
         "//cmd/beornextract/data:Bot.Cards.json",
         "//cmd/beornextract/data:Export.Cards.json",
+        "//cmd/beornextract/data:ringsdb.json",
+        "//cmd/beornextract/data:cycles.json",
     ],
     importpath = "github.com/squk/lotrlcg/cmd/beornextract",
     deps = [

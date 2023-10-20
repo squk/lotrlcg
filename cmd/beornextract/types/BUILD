@@ -4,6 +4,7 @@ go_library(
     name = "types",
     srcs = [
         "card.go",
+        "cycle.go",
         "trait.go",
     ],
     importpath = "github.com/squk/lotrlcg/cmd/beornextract/types",

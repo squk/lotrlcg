@@ -46,6 +46,7 @@ func main() {
 			if err != nil {
 				return err
 			}
+			fmt.Println(path)
 			return nil
 		})
 	if err != nil {
@@ -53,19 +54,27 @@ func main() {
 	}
 
 	// Open our jsonFile
-	jsonFile, err := os.Open("cmd/beornextract/data/Bot.Cards.json") // has incorrect data
-	// jsonFile, err := os.Open("cmd/beornextract/data/Export.Cards.json")
-	// if we os.Open returns an error then handle it
+	// jsonFile, err := os.Open("cmd/beornextract/data/ringsdb.json")
+	jsonFile, err := os.Open("cmd/beornextract/data/Export.Cards.json")
+	defer jsonFile.Close()
+	// jsonFile, err := os.Open("cmd/beornextract/data/Bot.Cards.json") // has incorrect data
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	// defer the closing of our jsonFile so that we can parse it later on
-	defer jsonFile.Close()
-
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 	cards := []types.HallOfBeornCard{}
 	json.Unmarshal(byteValue, &cards)
+
+	cyclesJson, err := os.Open("cmd/beornextract/data/cycles.json")
+	defer cyclesJson.Close()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	byteValue, _ = ioutil.ReadAll(cyclesJson)
+	cycles := types.CycleMappings{}
+	json.Unmarshal(byteValue, &cycles)
 
 	// Open a file for writing
 	csvFile, err := os.Create("/Users/christian/Downloads/lotr-lcg-set-generator.csv")
@@ -94,6 +103,12 @@ func main() {
 		processedText := transformText(card.Name, card.Text)
 		sideAText := extractSideAText(processedText)
 		sideBText := extractSideBText(processedText)
+		sideBName := ""
+		sideBType := ""
+		if sideBText != "" {
+			sideBName = card.Name
+			sideBType = card.TypeName
+		}
 		willpower := getXVal(card.Willpower)
 		attack := getXVal(card.Attack)
 		defense := getXVal(card.Defense)
@@ -157,31 +172,31 @@ func main() {
 				sideAText,
 				card.Shadow,
 				fixFlavor(card.Flavor),
-				"", // printed card number
-				"", // encounter set number
-				"", // encounter set icon
-				"", // flags
-				"", // artist
-				"", // pan X
-				"", // pan Y
-				"", // scale
-				"", // portait shadow
-				"", // Side B
-				"", // is_unique,
-				"", // card.TypeName,
-				"", // card.SphereName,
-				"", // card.Traits,
-				"", // findKeywords(card.Text),
-				"", // cost,
-				"", // EngagementCost,
-				"", // threat,
-				"", // willpower
-				"", // attack
-				"", // defense
-				"", // health
-				"", // questPoints
-				"", // victoryPoints,
-				"", // Special Icon
+				strconv.Itoa(card.Position),                   // printed card number
+				"",                                // encounter set number
+				card.EncounterSet,                 // encounter set icon
+				"",                                // flags
+				"",                                // artist
+				"",                                // pan X
+				"",                                // pan Y
+				"",                                // scale
+				"",                                // portait shadow
+				sideBName,                         // Side B
+				"",                                // is_unique,
+				sideBType,                         // card.TypeName,
+				"",                                // card.SphereName,
+				"",                                // card.Traits,
+				"",                                // findKeywords(card.Text),
+				"",                                // cost,
+				"",                                // EngagementCost,
+				strconv.Itoa(card.ThreatStrength), // threat,
+				"",                                // willpower
+				"",                                // attack
+				"",                                // defense
+				"",                                // health
+				strconv.Itoa(card.QuestPoints),    // questPoints
+				strconv.Itoa(card.VictoryPoints),  // victoryPoints,
+				"",                                // Special Icon
 				sideBText,
 				"",                   // flavor
 				"",                   // shadow
@@ -205,6 +220,7 @@ func main() {
 				"",                   //Discord Bot
 				"",
 				"", //Current Snapshot
+				cycles.GetCycleFromPack(card.PackName),
 				card.PackCode,
 				card.PackName,
 			},
@@ -237,12 +253,12 @@ func transformText(name, text string) string {
 	out = regexp.MustCompile(`(\bheal[^.]+?\b)on(\b)`).ReplaceAllString(out, "${1}from${2}")
 
 	// surround traits
-	reggy := fmt.Sprintf(`\s(%s)\s(trait|or|and|cards?|ally|allies|attachments?|events?|heroes|hero|contracts?|characters?|enemy|enemies|location|or)(\.?)`, strings.Join(types.TraitsList, "|"))
-	out = regexp.MustCompile(reggy).ReplaceAllString(out, " {${1}} $2")
+	reggy := fmt.Sprintf(`([^(?:The One|Thrór's)]\s)(%s)\s(trait|or|and|cards?|ally|allies|attachments?|events?|heroes|hero|contracts?|characters?|enemy|enemies|location|or)(\.?)`, strings.Join(types.TraitsList, "|"))
+	out = regexp.MustCompile(reggy).ReplaceAllString(out, "$1{${2}} $3")
 
-	out = regexp.MustCompile(`\s(Traits?)\s`).ReplaceAllString(out, " {${1}} ")
+	out = regexp.MustCompile(`\s([Tt]raits?)\s`).ReplaceAllString(out, " {${1}} ")
 
-	out = regexp.MustCompile(`[^\[](tactics|leadership|spirit|lore)[^\]]`).ReplaceAllString(out, "[$1]")
+	out = regexp.MustCompile(`(\s)[^\[](tactics|leadership|spirit|lore)[^\]]([\s,\.])`).ReplaceAllString(out, "$1[$2]$3")
 	//  make all newline groups exactly two newlines
 	out = paragraphPattern.ReplaceAllLiteralString(out, "\r\n\r\n")
 	return strings.TrimSpace(out)
