@@ -7,6 +7,6 @@ go_library(
         "cycle.go",
         "trait.go",
     ],
-    importpath = "github.com/squk/lotrlcg/cmd/beornextract/types",
+    importpath = "github.com/squk/lotrlcg/src/cmd/beornextract/types",
     visibility = ["//visibility:public"],
 )

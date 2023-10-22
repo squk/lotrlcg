@@ -8,17 +8,17 @@ go_library(
     name = "beornextract_lib",
     srcs = ["main.go"],
     data = [
-        "//cmd/beornextract/data:Bot.Cards.json",
-        "//cmd/beornextract/data:Export.Cards.json",
-        "//cmd/beornextract/data:ringsdb.json",
-        "//cmd/beornextract/data:cycles.json",
+        "//third_party/data/hallofbeorn/data:Bot.Cards.json",
+        "//third_party/data/hallofbeorn/data:Export.Cards.json",
+        "//third_party/data/hallofbeorn/data:cycles.json",
+        "//third_party/data/hallofbeorn/data:ringsdb.json",
     ],
-    importpath = "github.com/squk/lotrlcg/cmd/beornextract",
+    importpath = "github.com/squk/lotrlcg/src/cmd/beornextract",
     deps = [
-        "//cmd/beornextract/types",
         "@com_github_grokify_html_strip_tags_go//:html-strip-tags-go",
         "@com_github_jessevdk_go_flags//:go-flags",
         "@com_github_satori_go_uuid//:go_uuid",
+        "@com_github_squk_lotrlcg//cmd/beornextract/types:go_default_library",
         "@io_bazel_rules_go//go/tools/bazel:go_default_library",
     ],
 )
